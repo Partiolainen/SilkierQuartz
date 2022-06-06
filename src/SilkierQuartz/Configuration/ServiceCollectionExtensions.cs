@@ -6,13 +6,15 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Reflection;
+using Quartz;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     public static class ServiceCollectionExtensions
     {
         [Obsolete("We recommend AddSilkierQuartz")]
-        public static IServiceCollection AddQuartzmin(this IServiceCollection services, Action<NameValueCollection> stdSchedulerFactoryOptions = null)
+        public static IServiceCollection AddQuartzmin(this IServiceCollection services,
+            Action<NameValueCollection> stdSchedulerFactoryOptions = null)
             => services.AddSilkierQuartz(stdSchedulerFactoryOptions: stdSchedulerFactoryOptions);
 
 
@@ -30,11 +32,16 @@ namespace Microsoft.Extensions.DependencyInjection
             var authenticationOptions = new SilkierQuartzAuthenticationOptions();
             configureAuthenticationOptions?.Invoke(authenticationOptions);
 
-         
+            services.AddQuartz(quartz =>
+            {
+                quartz.SchedulerName = options.Scheduler.SchedulerName;
+                quartz.UseMicrosoftDependencyInjectionJobFactory();
+            });
 
 
-                services.AddSingleton(authenticationOptions);
-         if (authenticationOptions.AccessRequirement != SilkierQuartzAuthenticationOptions.SimpleAccessRequirement.AllowAnonymous)
+            services.AddSingleton(authenticationOptions);
+            if (authenticationOptions.AccessRequirement !=
+                SilkierQuartzAuthenticationOptions.SimpleAccessRequirement.AllowAnonymous)
             {
                 services
                     .AddAuthentication(authenticationOptions.AuthScheme)
@@ -47,17 +54,21 @@ namespace Microsoft.Extensions.DependencyInjection
                         cfg.SlidingExpiration = true;
                     });
             }
-            services.AddAuthorization(opts =>
-                {
-                    opts.AddPolicy(SilkierQuartzAuthenticationOptions.AuthorizationPolicyName, builder =>
-                    {
-                        builder.AddRequirements(new SilkierQuartzDefaultAuthorizationRequirement(authenticationOptions.AccessRequirement));
-                    });
-                });
-                services.AddScoped<IAuthorizationHandler, SilkierQuartzDefaultAuthorizationHandler>();
-        
 
-            services.UseQuartzHostedService(stdSchedulerFactoryOptions);
+            services.AddAuthorization(opts =>
+            {
+                opts.AddPolicy(SilkierQuartzAuthenticationOptions.AuthorizationPolicyName,
+                    builder =>
+                    {
+                        builder.AddRequirements(
+                            new SilkierQuartzDefaultAuthorizationRequirement(
+                                authenticationOptions.AccessRequirement));
+                    });
+            });
+            services.AddScoped<IAuthorizationHandler, SilkierQuartzDefaultAuthorizationHandler>();
+
+
+            //services.UseQuartzHostedService(stdSchedulerFactoryOptions);
 
             var types = JobsListHelper.GetSilkierQuartzJobs(jobsasmlist?.Invoke());
             types.ForEach(t =>

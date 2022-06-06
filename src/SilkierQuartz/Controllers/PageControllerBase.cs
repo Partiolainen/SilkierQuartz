@@ -22,7 +22,7 @@ namespace SilkierQuartz.Controllers
         {
             ContractResolver = new DefaultContractResolver(), // PascalCase as default
         };
-        private static readonly object _systemTextSerializerOptions = new JsonSerializerOptions();
+        private static readonly object _systemTextSerializerOptions = new System.Text.Json.JsonSerializerOptions();
 
         protected Services Services => (Services)Request.HttpContext.Items[typeof(Services)];
         protected string GetRouteData(string key) => RouteData.Values[key].ToString();
